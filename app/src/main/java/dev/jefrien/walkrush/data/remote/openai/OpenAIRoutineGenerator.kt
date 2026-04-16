@@ -34,7 +34,7 @@ class OpenAIRoutineGenerator(
         }
 
         val request = OpenAIRequest(
-            model = "gpt-3.5-turbo",
+            model = "gpt-4o-mini",
             messages = listOf(
                 OpenAIMessage(
                     role = "system",
@@ -46,7 +46,7 @@ class OpenAIRoutineGenerator(
                 )
             ),
             responseFormat = ResponseFormat("json_object"),
-            maxTokens = 4096,
+            maxTokens = 8000,
             temperature = 0.5f
         )
 
@@ -241,7 +241,7 @@ private data class OpenAISessionJson(
     val dayOfWeek: Int,
     val type: String,
     val estimatedCalories: Int,
-    val notes: String,
+    val notes: String? = "",
     val phases: List<OpenAIPhaseJson> = emptyList()
 ) {
     fun toDomain(weeklyPlanId: String): WorkoutSession {
@@ -252,7 +252,7 @@ private data class OpenAISessionJson(
             dayOfWeek = dayOfWeek,
             type = SessionType.valueOf(type.uppercase()),
             estimatedCalories = estimatedCalories,
-            notes = notes,
+            notes = notes ?: "" ?: "",
             phases = phases.mapIndexed { index, phase ->
                 phase.toDomain(sessionId, index)
             }
@@ -267,7 +267,7 @@ private data class OpenAIPhaseJson(
     val targetSpeedKmh: Float,
     val targetInclinePercent: Float? = 0f,
     val durationSeconds: Int,
-    val notes: String? = null
+    val notes: String? = ""
 ) {
     fun toDomain(sessionId: String, index: Int): WorkoutPhase {
         return WorkoutPhase(
