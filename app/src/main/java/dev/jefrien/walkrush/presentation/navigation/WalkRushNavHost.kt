@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,7 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import dev.jefrien.walkrush.presentation.auth.AuthScreen
-
+import dev.jefrien.walkrush.presentation.onboarding.OnboardingScreen
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
@@ -65,23 +64,28 @@ fun WalkRushNavHost(
         ) {
             AuthScreen(
                 onNavigateToHome = {
-                    // Check if onboarding completed
+                    navController.navigate(Route.Home.path) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onNavigateToOnboarding = {
                     navController.navigate(Route.Onboarding.path) {
-                        popUpTo(Route.Auth.path) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )
+
         }
 
-        // Onboarding Flow
+        // Onboarding
         composable(route = Route.Onboarding.path) {
-           /* OnboardingScreen(
+            OnboardingScreen(
                 onOnboardingComplete = {
                     navController.navigate(Route.Home.path) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
-            )*/
+            )
         }
 
         // Home Screen

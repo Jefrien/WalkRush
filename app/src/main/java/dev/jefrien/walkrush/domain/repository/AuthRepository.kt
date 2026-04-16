@@ -15,6 +15,11 @@ interface AuthRepository {
     val currentUser: Flow<User?>
 
     /**
+     * Wait for the auth session to be initialized from storage
+     */
+    suspend fun awaitSessionInitialization()
+
+    /**
      * Check if user is currently authenticated
      */
     suspend fun isAuthenticated(): Boolean

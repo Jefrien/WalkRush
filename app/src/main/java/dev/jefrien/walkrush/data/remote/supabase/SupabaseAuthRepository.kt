@@ -33,6 +33,10 @@ class SupabaseAuthRepository(
         }
     }
 
+    override suspend fun awaitSessionInitialization() {
+        auth.awaitInitialization()
+    }
+
     override suspend fun isAuthenticated(): Boolean {
         return auth.currentSessionOrNull() != null
     }

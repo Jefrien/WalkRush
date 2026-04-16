@@ -40,6 +40,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AuthScreen(
     onNavigateToHome: () -> Unit,
+    onNavigateToOnboarding: () -> Unit,
     viewModel: AuthViewModel = koinViewModel()
 ) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle()
@@ -50,6 +51,7 @@ fun AuthScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is AuthViewModel.AuthEvent.NavigateToHome -> onNavigateToHome()
+                is AuthViewModel.AuthEvent.NavigateToOnboarding -> onNavigateToOnboarding()
                 is AuthViewModel.AuthEvent.ShowError -> {
                     snackbarHostState.showSnackbar(event.message)
                 }

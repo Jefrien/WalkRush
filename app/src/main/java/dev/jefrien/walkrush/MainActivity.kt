@@ -8,34 +8,29 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import dev.jefrien.walkrush.domain.repository.AuthRepository
-import dev.jefrien.walkrush.presentation.navigation.NavigationEvent
+import dev.jefrien.walkrush.domain.repository.UserProfileRepository
 import dev.jefrien.walkrush.presentation.navigation.Route
 import dev.jefrien.walkrush.presentation.navigation.WalkRushNavHost
 import dev.jefrien.walkrush.ui.theme.WalkRushTheme
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
 
     private val authRepository: AuthRepository by inject()
-
-    // Shared flow for navigation events from deep links
-    private val _navigationEvents = MutableSharedFlow<NavigationEvent>()
-    private val navigationEvents = _navigationEvents.asSharedFlow()
+    private val userProfileRepository: UserProfileRepository by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        val startDestination = determineStartDestination()
 
         setContent {
             WalkRushTheme {
@@ -43,62 +38,55 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    WalkRushNavHost(
-                        startDestination = startDestination,
-                        navigationEvents = navigationEvents
-                    )
+                    // Estado para determinar ruta inicial
+                    var startDestination by remember { mutableStateOf<String?>(null) }
+                    var isLoading by remember { mutableStateOf(true) }
+
+                    LaunchedEffect(Unit) {
+                        startDestination = determineStartDestination()
+                        isLoading = false
+                    }
+
+                    if (!isLoading && startDestination != null) {
+                        WalkRushNavHost(
+                            startDestination = startDestination!!
+                        )
+                    }
                 }
             }
         }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        // Handle deep links (OAuth callbacks)
-        handleDeepLink(intent)
-    }
+    private suspend fun determineStartDestination(): String {
+        // 1. Esperar a que Supabase cargue la sesión desde almacenamiento
+        authRepository.awaitSessionInitialization()
 
-    private fun determineStartDestination(): String {
-        // Check if user is authenticated
-        val isAuthenticated = authRepository.currentUserId() != null
+        // 2. ¿Está autenticado?
+        val isAuthenticated = authRepository.isAuthenticated()
 
-        return if (isAuthenticated) {
-            // TODO: Check if onboarding completed in DataStore
+        if (!isAuthenticated) {
+            return Route.Auth.path
+        }
+
+        // 2. ¿Tiene perfil completo?
+        val userId = authRepository.currentUserId() ?: return Route.Auth.path
+        val hasProfile = userProfileRepository.hasCompletedOnboarding(userId)
+
+        return if (hasProfile) {
             Route.Home.path
         } else {
-            Route.Auth.path
+            Route.Onboarding.path
         }
     }
 
-    private fun handleDeepLink(intent: Intent) {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle OAuth deep links
         val data = intent.data ?: return
-        val url = data.toString()
-
-        if (url.startsWith("walkrush://callback")) {
+        if (data.toString().startsWith("walkrush://callback")) {
             lifecycleScope.launch {
-                authRepository.handleDeepLink(url)
-                _navigationEvents.emit(
-                    NavigationEvent.Navigate(
-                        Route.Home
-                    )
-                )
+                authRepository.handleDeepLink(data.toString())
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    WalkRushTheme {
-        Greeting("Android")
     }
 }

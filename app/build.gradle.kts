@@ -4,8 +4,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.devtools.ksp) apply false
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Read local.properties
@@ -141,6 +140,8 @@ dependencies {
 
     // Health Connect (replaces Google Fit)
     implementation(libs.health.connect.client)
+
+    implementation(libs.multiplatform.settings)
 
 
 }

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.jefrien.walkrush.domain.model.auth.AuthResult
+import dev.jefrien.walkrush.domain.repository.UserProfileRepository
 import dev.jefrien.walkrush.domain.usecase.auth.SignInUseCase
 import dev.jefrien.walkrush.domain.usecase.auth.SignOutUseCase
 import dev.jefrien.walkrush.domain.usecase.auth.SignUpUseCase
@@ -23,7 +24,8 @@ import kotlinx.coroutines.launch
 class AuthViewModel(
     private val signInUseCase: SignInUseCase,
     private val signUpUseCase: SignUpUseCase,
-    private val signOutUseCase: SignOutUseCase
+    private val signOutUseCase: SignOutUseCase,
+    private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
     // UI State
@@ -79,7 +81,16 @@ class AuthViewModel(
             when (val result = signInUseCase(email, password)) {
                 is AuthResult.Success -> {
                     _uiState.value = _uiState.value.copy(isLoading = false)
-                    _events.emit(AuthEvent.NavigateToHome)
+
+                    // Verificar si tiene perfil
+                    val userId = result.data.id
+                    val hasProfile = userProfileRepository.hasCompletedOnboarding(userId)
+
+                    if (hasProfile) {
+                        _events.emit(AuthEvent.NavigateToHome)
+                    } else {
+                        _events.emit(AuthEvent.NavigateToOnboarding)
+                    }
                 }
 
                 is AuthResult.Error -> {
@@ -102,7 +113,7 @@ class AuthViewModel(
                 is AuthResult.Success -> {
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     _events.emit(AuthEvent.ShowSuccess("Cuenta creada. Verifica tu email."))
-                    _events.emit(AuthEvent.NavigateToHome)
+                    _events.emit(AuthEvent.NavigateToOnboarding)
                 }
 
                 is AuthResult.Error -> {
@@ -140,5 +151,6 @@ class AuthViewModel(
         data class ShowSuccess(val message: String) : AuthEvent()
         object NavigateToHome : AuthEvent()
         object NavigateToAuth : AuthEvent()
+        object NavigateToOnboarding : AuthEvent()
     }
 }
