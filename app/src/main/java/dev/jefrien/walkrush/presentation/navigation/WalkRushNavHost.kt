@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import dev.jefrien.walkrush.presentation.auth.AuthScreen
+import dev.jefrien.walkrush.presentation.home.HomeScreen
 import dev.jefrien.walkrush.presentation.onboarding.OnboardingScreen
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -90,7 +91,7 @@ fun WalkRushNavHost(
 
         // Home Screen
         composable(route = Route.Home.path) {
-            /*HomeScreen(
+            HomeScreen(
                 onNavigateToProfile = {
                     navController.navigate(Route.Profile.path)
                 },
@@ -99,8 +100,13 @@ fun WalkRushNavHost(
                 },
                 onStartWorkout = { sessionId ->
                     navController.navigate(Route.ActiveWorkout.createRoute(sessionId))
+                },
+                onSignOut = {
+                    navController.navigate(Route.Auth.path) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
-            )*/
+            )
         }
 
         // Profile Screen

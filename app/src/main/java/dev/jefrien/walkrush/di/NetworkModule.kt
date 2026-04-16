@@ -2,6 +2,7 @@ package dev.jefrien.walkrush.di
 
 import dev.jefrien.walkrush.BuildConfig
 import dev.jefrien.walkrush.data.local.SupabaseSessionManager
+import dev.jefrien.walkrush.data.remote.openai.OpenAIRoutineGenerator
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.FlowType
@@ -12,6 +13,7 @@ import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.ContentType
@@ -43,6 +45,12 @@ val NetworkModule = module {
                 json(get())
             }
 
+            install(HttpTimeout) {
+                requestTimeoutMillis = 120_000
+                connectTimeoutMillis = 30_000
+                socketTimeoutMillis = 120_000
+            }
+
             defaultRequest {
                 contentType(ContentType.Application.Json)
             }
@@ -56,6 +64,14 @@ val NetworkModule = module {
 
     single<SessionManager> {
         SupabaseSessionManager(androidContext(), get())
+    }
+
+    single {
+        OpenAIRoutineGenerator(
+            httpClient = get(),
+            apiKey = BuildConfig.OPENAI_API_KEY,
+            json = get()
+        )
     }
 
     // Supabase Client

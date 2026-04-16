@@ -54,6 +54,11 @@ android {
             "SUPABASE_ANON_KEY",
             "\"${getProperty("SUPABASE_ANON_KEY", "placeholder-key")}\""
         )
+        buildConfigField(
+            "String",
+            "OPENAI_API_KEY",
+            "\"${getProperty("OPENAI_API_KEY", "")}\""
+        )
 
     }
 
@@ -75,6 +80,11 @@ android {
                 "SUPABASE_ANON_KEY",
                 "\"${System.getenv("SUPABASE_ANON_KEY") ?: getProperty("SUPABASE_ANON_KEY", "")}\""
             )
+            buildConfigField(
+                "String",
+                "OPENAI_API_KEY",
+                "\"${System.getenv("OPENAI_API_KEY") ?: getProperty("OPENAI_API_KEY", "")}\""
+            )
         }
         debug {
             isDebuggable = true
@@ -84,6 +94,11 @@ android {
                 "String",
                 "SUPABASE_ANON_KEY",
                 "\"${getProperty("SUPABASE_ANON_KEY", "")}\""
+            )
+            buildConfigField(
+                "String",
+                "OPENAI_API_KEY",
+                "\"${getProperty("OPENAI_API_KEY", "")}\""
             )
         }
     }
