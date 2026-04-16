@@ -12,6 +12,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import dev.jefrien.walkrush.presentation.activeworkout.ActiveWorkoutScreen
 import dev.jefrien.walkrush.presentation.auth.AuthScreen
+import dev.jefrien.walkrush.presentation.history.HistoryScreen
 import dev.jefrien.walkrush.presentation.home.HomeScreen
 import dev.jefrien.walkrush.presentation.onboarding.OnboardingScreen
 import kotlinx.coroutines.flow.SharedFlow
@@ -125,7 +126,7 @@ fun WalkRushNavHost(
 
         // History Screen
         composable(route = Route.History.path) {
-            HistoryPlaceholder(
+            HistoryScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
