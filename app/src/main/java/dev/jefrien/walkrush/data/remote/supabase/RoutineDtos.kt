@@ -27,12 +27,16 @@ data class WorkoutSessionDto(
     val id: String,
     @SerialName("weekly_plan_id") val weeklyPlanId: String,
     @SerialName("day_of_week") val dayOfWeek: Int,
-    @SerialName("duration_minutes") val durationMinutes: Int,
-    @SerialName("speed_min") val speedMin: Float,
-    @SerialName("speed_max") val speedMax: Float,
+    @SerialName("duration_minutes") val durationMinutes: Int = 0,
+    @SerialName("speed_min") val speedMin: Float = 0f,
+    @SerialName("speed_max") val speedMax: Float = 0f,
     @SerialName("incline_min") val inclineMin: Float? = 0f,
     @SerialName("incline_max") val inclineMax: Float? = 0f,
     @SerialName("session_type") val sessionType: String,
     @SerialName("estimated_calories") val estimatedCalories: Int,
-    val notes: String
+    val notes: String,
+    @SerialName("is_completed") val isCompleted: Boolean = false,
+    @SerialName("completed_at") val completedAt: String? = null,
+    @SerialName("actual_calories") val actualCalories: Int? = null,
+    @SerialName("user_rating") val userRating: Int? = null
 )

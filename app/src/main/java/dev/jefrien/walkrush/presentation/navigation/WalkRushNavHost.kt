@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import dev.jefrien.walkrush.presentation.activeworkout.ActiveWorkoutScreen
 import dev.jefrien.walkrush.presentation.auth.AuthScreen
 import dev.jefrien.walkrush.presentation.home.HomeScreen
 import dev.jefrien.walkrush.presentation.onboarding.OnboardingScreen
@@ -139,7 +140,7 @@ fun WalkRushNavHost(
             )
         ) { backStackEntry ->
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
-            ActiveWorkoutPlaceholder(
+            ActiveWorkoutScreen(
                 sessionId = sessionId,
                 onWorkoutComplete = { navController.popBackStack() },
                 onCancel = { navController.popBackStack() }

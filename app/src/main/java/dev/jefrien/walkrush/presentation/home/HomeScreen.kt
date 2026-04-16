@@ -142,10 +142,17 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // Botón principal: entrenar
+                val activeRoutine = uiState.value.activeRoutine
+                val nextSession = activeRoutine?.weeklyPlans
+                    ?.flatMap { it.sessions }
+                    ?.firstOrNull { !it.isCompleted }
+
                 Button(
-                    onClick = { /* TODO: conectar con rutinas reales */ },
+                    onClick = {
+                        nextSession?.let { viewModel.startWorkout(it.id) }
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = profile != null
+                    enabled = nextSession != null
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
@@ -154,7 +161,11 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.size(8.dp))
                     Text(
-                        text = if (profile != null) "Iniciar entrenamiento" else "Crea tu perfil primero",
+                        text = when {
+                            nextSession != null -> "Iniciar entrenamiento"
+                            activeRoutine != null -> "Todas las sesiones completadas"
+                            else -> "Genera una rutina primero"
+                        },
                         fontSize = 18.sp
                     )
                 }

@@ -1,5 +1,6 @@
 package dev.jefrien.walkrush.di
 
+import dev.jefrien.walkrush.presentation.activeworkout.ActiveWorkoutViewModel
 import dev.jefrien.walkrush.presentation.auth.AuthViewModel
 import dev.jefrien.walkrush.presentation.home.HomeViewModel
 import dev.jefrien.walkrush.presentation.onboarding.OnboardingViewModel
@@ -10,4 +11,5 @@ val ViewModelModule = module {
     viewModel { AuthViewModel(get(), get(), get(), get()) }
     viewModel { OnboardingViewModel(get(), get()) }
     viewModel { HomeViewModel(get(), get(), get()) }
+    viewModel { ActiveWorkoutViewModel(get()) }
 }

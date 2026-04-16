@@ -37,6 +37,7 @@
 
     <!-- Keep screen on during workout -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
