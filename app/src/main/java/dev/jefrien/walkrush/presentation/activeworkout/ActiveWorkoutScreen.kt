@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.jefrien.walkrush.domain.model.routine.PhaseType
+import dev.jefrien.walkrush.presentation.common.TtsCoach
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -88,6 +89,7 @@ fun ActiveWorkoutScreen(
     var showFinishDialog by remember { mutableStateOf(false) }
 
     val toneGenerator = remember { ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100) }
+    val ttsCoach = remember { TtsCoach(context) }
 
     SideEffect {
         activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -100,22 +102,26 @@ fun ActiveWorkoutScreen(
             activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             toneGenerator.release()
+            ttsCoach.shutdown()
         }
     }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is ActiveWorkoutViewModel.Event.NavigateBack -> onCancel()
+                is ActiveWorkoutViewModel.Event.NavigateBack -> {
+                    ttsCoach.stop()
+                    onCancel()
+                }
                 is ActiveWorkoutViewModel.Event.WorkoutComplete,
                 is ActiveWorkoutViewModel.Event.WorkoutAutoComplete -> {
-                    // Strong ringtone-like sound + longer duration
+                    ttsCoach.announceWorkoutComplete()
                     toneGenerator.startTone(ToneGenerator.TONE_SUP_RINGTONE, 900)
                     vibrate(context, 500)
                     onWorkoutComplete()
                 }
                 is ActiveWorkoutViewModel.Event.PhaseChanged -> {
-                    // Louder alert + double beep effect
+                    ttsCoach.announcePhaseStart(event.phase)
                     toneGenerator.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 350)
                     vibrate(context, 200)
                 }
@@ -129,6 +135,15 @@ fun ActiveWorkoutScreen(
     LaunchedEffect(uiState.value.isRunning) {
         if (uiState.value.isRunning) {
             toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP2, 220)
+        }
+    }
+
+    // Announce first phase once session loads and user starts running
+    var hasAnnouncedStart by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.value.isLoading, uiState.value.isRunning) {
+        if (!uiState.value.isLoading && uiState.value.isRunning && !hasAnnouncedStart) {
+            hasAnnouncedStart = true
+            uiState.value.currentPhase?.let { ttsCoach.announcePhaseStart(it) }
         }
     }
 

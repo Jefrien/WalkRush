@@ -16,7 +16,9 @@ import dev.jefrien.walkrush.presentation.history.HistoryScreen
 import dev.jefrien.walkrush.presentation.home.HomeScreen
 import dev.jefrien.walkrush.presentation.onboarding.OnboardingScreen
 import dev.jefrien.walkrush.presentation.postworkout.PostWorkoutScreen
+import dev.jefrien.walkrush.presentation.calendar.CalendarScreen
 import dev.jefrien.walkrush.presentation.profile.ProfileScreen
+import dev.jefrien.walkrush.presentation.settings.SettingsScreen
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
@@ -102,6 +104,9 @@ fun WalkRushNavHost(
                 onNavigateToHistory = {
                     navController.navigate(Route.History.path)
                 },
+                onNavigateToCalendar = {
+                    navController.navigate(Route.Calendar.path)
+                },
                 onStartWorkout = { sessionId ->
                     navController.navigate(Route.ActiveWorkout.createRoute(sessionId))
                 },
@@ -117,11 +122,28 @@ fun WalkRushNavHost(
         composable(route = Route.Profile.path) {
             ProfileScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToSettings = {
+                    navController.navigate(Route.Settings.path)
+                },
                 onSignOut = {
                     navController.navigate(Route.Auth.path) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        // Settings Screen
+        composable(route = Route.Settings.path) {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // Calendar Screen
+        composable(route = Route.Calendar.path) {
+            CalendarScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

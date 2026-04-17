@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -64,6 +65,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.jefrien.walkrush.domain.model.routine.PhaseType
 import dev.jefrien.walkrush.domain.model.routine.WorkoutSession
 import dev.jefrien.walkrush.domain.model.userprofile.IntensityLevel
+import dev.jefrien.walkrush.presentation.common.DailyWorkoutItem
+import dev.jefrien.walkrush.presentation.common.DailyWorkoutStatus
+import dev.jefrien.walkrush.presentation.common.formatShortWeekday
 import org.koin.androidx.compose.koinViewModel
 import java.time.LocalDate
 
@@ -72,6 +76,7 @@ import java.time.LocalDate
 fun HomeScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToCalendar: () -> Unit,
     onStartWorkout: (String) -> Unit,
     onSignOut: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
@@ -257,6 +262,19 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.size(4.dp))
                         Text("Historial")
+                    }
+
+                    FilledTonalButton(
+                        onClick = onNavigateToCalendar,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.size(4.dp))
+                        Text("Calendario")
                     }
 
                     FilledTonalButton(

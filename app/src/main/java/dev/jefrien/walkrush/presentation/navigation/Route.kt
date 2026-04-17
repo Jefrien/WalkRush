@@ -14,6 +14,8 @@ sealed class Route(val path: String) {
     // Main screens
     object Home : Route("home")
     object Profile : Route("profile")
+    object Settings : Route("settings")
+    object Calendar : Route("calendar")
     object History : Route("history")
 
     // Workout
@@ -34,6 +36,7 @@ sealed class Route(val path: String) {
                 route == Onboarding.path -> Onboarding
                 route == Home.path -> Home
                 route == Profile.path -> Profile
+                route == Calendar.path -> Calendar
                 route == History.path -> History
                 route.startsWith("active_workout/") -> ActiveWorkout
                 else -> Auth
