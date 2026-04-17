@@ -16,6 +16,7 @@ sealed class Route(val path: String) {
     object Profile : Route("profile")
     object Settings : Route("settings")
     object Calendar : Route("calendar")
+    object HealthTest : Route("health_test")
     object History : Route("history")
 
     // Workout

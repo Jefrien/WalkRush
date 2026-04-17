@@ -158,5 +158,8 @@ dependencies {
 
     implementation(libs.multiplatform.settings)
 
+    // Sansung SDK
+    implementation (files("libs/samsung-health-data-1.1.0.aar"))
+
 
 }

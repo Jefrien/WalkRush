@@ -8,6 +8,7 @@ import dev.jefrien.walkrush.presentation.onboarding.OnboardingViewModel
 import dev.jefrien.walkrush.presentation.postworkout.PostWorkoutViewModel
 import dev.jefrien.walkrush.presentation.profile.ProfileViewModel
 import dev.jefrien.walkrush.presentation.calendar.CalendarViewModel
+import dev.jefrien.walkrush.presentation.healthtest.HealthTestViewModel
 import dev.jefrien.walkrush.presentation.settings.SettingsViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -22,4 +23,5 @@ val ViewModelModule = module {
     viewModel { PostWorkoutViewModel(get(), get()) }
     viewModel { SettingsViewModel(get(), get(), get()) }
     viewModel { CalendarViewModel(get(), get(), get()) }
+    viewModel { HealthTestViewModel(get()) }
 }

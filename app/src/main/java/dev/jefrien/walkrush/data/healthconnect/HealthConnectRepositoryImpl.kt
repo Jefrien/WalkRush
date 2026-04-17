@@ -1,7 +1,8 @@
 package dev.jefrien.walkrush.data.healthconnect
 
 import android.content.Context
-import android.os.Build
+import android.content.Intent
+import android.net.Uri
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.DistanceRecord
@@ -9,6 +10,9 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.metadata.Device
+import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
@@ -28,17 +32,50 @@ class HealthConnectRepositoryImpl(
 
     override suspend fun isAvailable(): Boolean {
         return try {
-            val status = HealthConnectClient.getSdkStatus(context)
+            val status = HealthConnectClient.getSdkStatus(context, PROVIDER_PACKAGE_NAME)
             status == HealthConnectClient.SDK_AVAILABLE
         } catch (e: Exception) {
             false
         }
     }
 
+    fun getSdkStatus(): Int {
+        return try {
+            HealthConnectClient.getSdkStatus(context, PROVIDER_PACKAGE_NAME)
+        } catch (e: Exception) {
+            HealthConnectClient.SDK_UNAVAILABLE
+        }
+    }
+
+    fun isUpdateRequired(): Boolean {
+        return getSdkStatus() == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED
+    }
+
+    fun openPlayStoreForUpdate() {
+        val uriString = "market://details?id=$PROVIDER_PACKAGE_NAME&url=healthconnect%3A%2F%2Fonboarding"
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setPackage("com.android.vending")
+            data = Uri.parse(uriString)
+            putExtra("overlay", true)
+            putExtra("callerId", context.packageName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+
     override suspend fun hasPermissions(): Boolean {
         return try {
             val granted = client.permissionController.getGrantedPermissions()
-            requiredPermissions.all { it in granted }
+            writePermissions.all { it in granted }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun hasReadPermissions(): Boolean {
+        return try {
+            val granted = client.permissionController.getGrantedPermissions()
+            readPermissions.all { it in granted }
         } catch (e: Exception) {
             false
         }
@@ -49,7 +86,7 @@ class HealthConnectRepositoryImpl(
             return Result.failure(IllegalStateException("Health Connect no está disponible"))
         }
         if (!hasPermissions()) {
-            return Result.failure(SecurityException("Faltan permisos de Health Connect"))
+            return Result.failure(SecurityException("Faltan permisos de escritura de Health Connect"))
         }
 
         val startTime = Instant.ofEpochMilli(session.createdAt)
@@ -58,6 +95,9 @@ class HealthConnectRepositoryImpl(
         val zoneOffset = ZoneOffset.systemDefault().rules.getOffset(endTime)
 
         val exerciseType = resolveExerciseType(session)
+        val metadata = Metadata.autoRecorded(
+            device = Device(type = Device.TYPE_PHONE)
+        )
 
         val exerciseSession = ExerciseSessionRecord(
             startTime = startTime,
@@ -67,7 +107,7 @@ class HealthConnectRepositoryImpl(
             exerciseType = exerciseType,
             title = "WalkRush - ${session.type.name.replace("_", " ")}",
             notes = session.notes.takeIf { it.isNotBlank() },
-            metadata = androidx.health.connect.client.records.metadata.Metadata.manualEntry()
+            metadata = metadata
         )
 
         val records = mutableListOf<androidx.health.connect.client.records.Record>(exerciseSession)
@@ -82,7 +122,7 @@ class HealthConnectRepositoryImpl(
                     endTime = endTime,
                     endZoneOffset = zoneOffset,
                     energy = Energy.calories(calories.toDouble()),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.manualEntry()
+                    metadata = metadata
                 )
             )
         }
@@ -99,93 +139,102 @@ class HealthConnectRepositoryImpl(
                     endTime = endTime,
                     endZoneOffset = zoneOffset,
                     distance = Length.kilometers(estimatedDistanceKm),
-                    metadata = androidx.health.connect.client.records.metadata.Metadata.manualEntry()
+                    metadata = metadata
                 )
             )
         }
 
-        val response = client.insertRecords(records)
-
-        if (response.recordIdsList.isNotEmpty()) {
-            Result.success(Unit)
-        } else {
-            Result.failure(IllegalStateException("No se insertaron registros"))
-        }
+        client.insertRecords(records)
+        Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     override suspend fun readSessionHealthData(startTime: Instant, endTime: Instant): HealthSessionData {
-        if (!isAvailable() || !hasPermissions()) {
-            return HealthSessionData()
+        if (!isAvailable()) {
+            return HealthSessionData(healthConnectStatus = HealthConnectStatus.NOT_AVAILABLE)
+        }
+
+        val hasRead = hasReadPermissions()
+        if (!hasRead) {
+            return HealthSessionData(healthConnectStatus = HealthConnectStatus.PERMISSIONS_MISSING)
         }
 
         return try {
             val timeFilter = TimeRangeFilter.between(startTime, endTime)
 
-            // Heart rate
-            val heartRateRecords = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = HeartRateRecord::class,
-                    timeRangeFilter = timeFilter
+            // Heart rate - read raw records for latest BPM
+            val heartRateBpm = try {
+                val heartRateResponse = client.readRecords(
+                    ReadRecordsRequest(
+                        recordType = HeartRateRecord::class,
+                        timeRangeFilter = timeFilter
+                    )
                 )
-            ).records
-            val latestBpm = heartRateRecords
-                .flatMap { it.samples }
-                .maxByOrNull { it.time }
-                ?.beatsPerMinute
-                ?.toInt()
+                heartRateResponse.records
+                    .flatMap { it.samples }
+                    .maxByOrNull { it.time }
+                    ?.beatsPerMinute
+                    ?.toInt()
+            } catch (e: Exception) {
+                null
+            }
 
-            // Calories
-            val caloriesRecords = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = TotalCaloriesBurnedRecord::class,
-                    timeRangeFilter = timeFilter
+            // Use aggregate for totals (more reliable for data from watch/apps)
+            val aggregateResponse = try {
+                client.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(
+                            StepsRecord.COUNT_TOTAL,
+                            DistanceRecord.DISTANCE_TOTAL,
+                            TotalCaloriesBurnedRecord.ENERGY_TOTAL
+                        ),
+                        timeRangeFilter = timeFilter
+                    )
                 )
-            ).records
-            val totalCalories = caloriesRecords.sumOf { it.energy.inCalories }
+            } catch (e: Exception) {
+                null
+            }
 
-            // Distance
-            val distanceRecords = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = DistanceRecord::class,
-                    timeRangeFilter = timeFilter
-                )
-            ).records
-            val totalDistanceKm = distanceRecords.sumOf { it.distance.inKilometers }
-
-            // Steps
-            val stepsRecords = client.readRecords(
-                ReadRecordsRequest(
-                    recordType = StepsRecord::class,
-                    timeRangeFilter = timeFilter
-                )
-            ).records
-            val totalSteps = stepsRecords.sumOf { it.count }
+            val totalSteps = aggregateResponse?.get(StepsRecord.COUNT_TOTAL)
+            val totalDistance = aggregateResponse?.get(DistanceRecord.DISTANCE_TOTAL)
+            val totalCalories = aggregateResponse?.get(TotalCaloriesBurnedRecord.ENERGY_TOTAL)
 
             HealthSessionData(
-                heartRateBpm = latestBpm,
-                caloriesBurned = totalCalories.takeIf { it > 0 },
-                distanceKm = totalDistanceKm.takeIf { it > 0 },
-                steps = totalSteps.takeIf { it > 0 }
+                heartRateBpm = heartRateBpm,
+                caloriesBurned = totalCalories?.inKilocalories,
+                distanceKm = totalDistance?.inKilometers,
+                steps = totalSteps,
+                healthConnectStatus = HealthConnectStatus.CONNECTED
             )
         } catch (e: Exception) {
-            HealthSessionData()
+            HealthSessionData(healthConnectStatus = HealthConnectStatus.ERROR)
         }
     }
 
     companion object {
-        private val requiredPermissions = setOf(
+        const val PROVIDER_PACKAGE_NAME = "com.google.android.apps.healthdata"
+
+        fun createPermissionContract(): androidx.activity.result.contract.ActivityResultContract<Set<String>, Set<String>> {
+            return androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()
+        }
+
+        private val writePermissions = setOf(
             HealthPermission.getWritePermission(ExerciseSessionRecord::class),
             HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class),
-            HealthPermission.getWritePermission(DistanceRecord::class),
+            HealthPermission.getWritePermission(DistanceRecord::class)
+        )
+
+        private val readPermissions = setOf(
             HealthPermission.getReadPermission(HeartRateRecord::class),
             HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
             HealthPermission.getReadPermission(DistanceRecord::class),
             HealthPermission.getReadPermission(StepsRecord::class)
         )
 
-        fun getRequiredPermissions(): Set<String> = requiredPermissions
+        fun getWritePermissions(): Set<String> = writePermissions
+        fun getReadPermissions(): Set<String> = readPermissions
+        fun getAllPermissions(): Set<String> = writePermissions + readPermissions
     }
 }
 
@@ -197,4 +246,11 @@ private fun resolveExerciseType(session: WorkoutSession): Int {
         hasWalk -> ExerciseSessionRecord.EXERCISE_TYPE_WALKING
         else -> ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT
     }
+}
+
+enum class HealthConnectStatus {
+    NOT_AVAILABLE,
+    PERMISSIONS_MISSING,
+    ERROR,
+    CONNECTED
 }

@@ -2,8 +2,8 @@ package dev.jefrien.walkrush.presentation.postworkout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.jefrien.walkrush.data.manager.HealthDataManager
 import dev.jefrien.walkrush.domain.model.routine.WorkoutSession
-import dev.jefrien.walkrush.domain.repository.HealthConnectRepository
 import dev.jefrien.walkrush.domain.repository.RoutineRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 
 class PostWorkoutViewModel(
     private val routineRepository: RoutineRepository,
-    private val healthConnectRepository: HealthConnectRepository
+    private val healthDataManager: HealthDataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PostWorkoutUiState())
@@ -32,7 +32,7 @@ class PostWorkoutViewModel(
                 _events.emit(PostWorkoutEvent.NavigateHome)
                 return@launch
             }
-            val hcAvailable = healthConnectRepository.isAvailable()
+            val hcAvailable = healthDataManager.isAvailable()
             _uiState.value = PostWorkoutUiState(
                 isLoading = false,
                 session = session,
@@ -62,7 +62,7 @@ class PostWorkoutViewModel(
             }
 
             if (state.healthConnectAvailable) {
-                syncWithHealthConnect(session)
+                syncWithHealthDataSource(session)
             }
 
             _events.emit(PostWorkoutEvent.NavigateHome)
@@ -74,7 +74,7 @@ class PostWorkoutViewModel(
             val state = _uiState.value
             val session = state.session
             if (state.healthConnectAvailable && session != null) {
-                syncWithHealthConnect(session)
+                syncWithHealthDataSource(session)
             }
             _events.emit(PostWorkoutEvent.NavigateHome)
         }
@@ -89,18 +89,18 @@ class PostWorkoutViewModel(
     fun syncWithHealthConnectAfterPermissions() {
         viewModelScope.launch {
             val session = _uiState.value.session ?: return@launch
-            syncWithHealthConnect(session)
+            syncWithHealthDataSource(session)
             _uiState.value = _uiState.value.copy(healthConnectPermissionsNeeded = false)
         }
     }
 
-    private suspend fun syncWithHealthConnect(session: WorkoutSession) {
-        val hasPermissions = healthConnectRepository.hasPermissions()
+    private suspend fun syncWithHealthDataSource(session: WorkoutSession) {
+        val hasPermissions = healthDataManager.hasPermissions()
         if (!hasPermissions) {
             _uiState.value = _uiState.value.copy(healthConnectPermissionsNeeded = true)
             return
         }
-        val result = healthConnectRepository.syncWorkout(session)
+        val result = healthDataManager.syncWorkout(session)
         _uiState.value = _uiState.value.copy(
             healthConnectSyncSuccess = result.isSuccess,
             healthConnectError = result.exceptionOrNull()?.message

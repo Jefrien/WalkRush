@@ -1,6 +1,7 @@
 package dev.jefrien.walkrush.presentation.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,6 +78,7 @@ fun HomeScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToCalendar: () -> Unit,
+    onNavigateToHealthTest: () -> Unit,
     onStartWorkout: (String) -> Unit,
     onSignOut: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
@@ -163,6 +165,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .clickable { onNavigateToHealthTest() }
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Icon(
@@ -246,49 +249,31 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Botones de navegación
+                // Dock de navegación
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    FilledTonalButton(
-                        onClick = onNavigateToHistory,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Historial")
-                    }
-
-                    FilledTonalButton(
-                        onClick = onNavigateToCalendar,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Calendario")
-                    }
-
-                    FilledTonalButton(
-                        onClick = onNavigateToProfile,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.size(4.dp))
-                        Text("Perfil")
-                    }
+                    DockIcon(
+                        icon = Icons.Default.History,
+                        label = "Historial",
+                        onClick = onNavigateToHistory
+                    )
+                    DockIcon(
+                        icon = Icons.Default.CalendarMonth,
+                        label = "Calendario",
+                        onClick = onNavigateToCalendar
+                    )
+                    DockIcon(
+                        icon = Icons.Default.Person,
+                        label = "Perfil",
+                        onClick = onNavigateToProfile
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -921,6 +906,36 @@ private fun ProfileSummaryCard(profile: dev.jefrien.walkrush.domain.model.userpr
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DockIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        androidx.compose.material3.IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

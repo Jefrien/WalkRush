@@ -2,9 +2,9 @@ package dev.jefrien.walkrush.presentation.activeworkout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.jefrien.walkrush.data.manager.HealthDataManager
 import dev.jefrien.walkrush.domain.model.routine.WorkoutPhase
 import dev.jefrien.walkrush.domain.model.routine.WorkoutSession
-import dev.jefrien.walkrush.domain.repository.HealthConnectRepository
 import dev.jefrien.walkrush.domain.repository.HealthSessionData
 import dev.jefrien.walkrush.domain.repository.RoutineRepository
 import kotlinx.coroutines.Job
@@ -20,7 +20,7 @@ import java.time.Instant
 
 class ActiveWorkoutViewModel(
     private val routineRepository: RoutineRepository,
-    private val healthConnectRepository: HealthConnectRepository
+    private val healthDataManager: HealthDataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
@@ -30,7 +30,7 @@ class ActiveWorkoutViewModel(
     val events: SharedFlow<Event> = _events.asSharedFlow()
 
     private var timerJob: Job? = null
-    private var healthConnectJob: Job? = null
+    private var healthDataJob: Job? = null
     private var sessionStartTime: Instant? = null
 
     fun loadSession(sessionId: String) {
@@ -43,8 +43,8 @@ class ActiveWorkoutViewModel(
                 return@launch
             }
 
-            val hcAvailable = healthConnectRepository.isAvailable()
-            val hcPermissions = if (hcAvailable) healthConnectRepository.hasPermissions() else false
+            val hcAvailable = healthDataManager.isAvailable()
+            val hcPermissions = if (hcAvailable) healthDataManager.hasPermissions() else false
             sessionStartTime = Instant.ofEpochMilli(session.createdAt)
 
             _uiState.value = UiState(
@@ -57,7 +57,7 @@ class ActiveWorkoutViewModel(
             )
             startTimer()
             if (hcAvailable && hcPermissions) {
-                startHealthConnectPolling()
+                startHealthDataPolling()
             }
         }
     }
@@ -68,18 +68,18 @@ class ActiveWorkoutViewModel(
 
         if (state.isRunning) {
             pauseTimer()
-            stopHealthConnectPolling()
+            stopHealthDataPolling()
         } else {
             startTimer()
             if (state.healthConnectAvailable && state.healthConnectPermissionsGranted) {
-                startHealthConnectPolling()
+                startHealthDataPolling()
             }
         }
     }
 
     fun finishWorkout(rating: Int? = null) {
         pauseTimer()
-        stopHealthConnectPolling()
+        stopHealthDataPolling()
         val state = _uiState.value
         val session = state.session ?: return
 
@@ -107,7 +107,7 @@ class ActiveWorkoutViewModel(
 
     fun confirmCancel() {
         pauseTimer()
-        stopHealthConnectPolling()
+        stopHealthDataPolling()
         viewModelScope.launch {
             _events.emit(Event.NavigateBack)
         }
@@ -177,7 +177,7 @@ class ActiveWorkoutViewModel(
 
         if (newElapsed >= state.totalDurationSeconds) {
             pauseTimer()
-            stopHealthConnectPolling()
+            stopHealthDataPolling()
             _uiState.value = state.copy(
                 elapsedSeconds = newElapsed,
                 remainingTotalSeconds = 0,
@@ -203,32 +203,32 @@ class ActiveWorkoutViewModel(
         _uiState.value = _uiState.value.copy(isRunning = false)
     }
 
-    private fun startHealthConnectPolling() {
-        if (healthConnectJob?.isActive == true) return
-        healthConnectJob = viewModelScope.launch {
+    private fun startHealthDataPolling() {
+        if (healthDataJob?.isActive == true) return
+        healthDataJob = viewModelScope.launch {
             while (_uiState.value.isRunning && !_uiState.value.isCompleted) {
-                readHealthConnectData()
+                readHealthData()
                 delay(5000)
             }
         }
     }
 
-    private fun stopHealthConnectPolling() {
-        healthConnectJob?.cancel()
-        healthConnectJob = null
+    private fun stopHealthDataPolling() {
+        healthDataJob?.cancel()
+        healthDataJob = null
     }
 
-    private suspend fun readHealthConnectData() {
+    private suspend fun readHealthData() {
         val start = sessionStartTime ?: return
         val end = Instant.now()
-        val data = healthConnectRepository.readSessionHealthData(start, end)
+        val data = healthDataManager.readSessionHealthData(start, end)
         _uiState.value = _uiState.value.copy(healthConnectData = data)
     }
 
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
-        healthConnectJob?.cancel()
+        healthDataJob?.cancel()
     }
 
     data class UiState(

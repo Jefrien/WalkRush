@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Health Connect permissions -->
     <uses-permission android:name="android.permission.health.READ_HEART_RATE"
         tools:ignore="HealthConnectPolicy" />
     <uses-permission android:name="android.permission.health.WRITE_HEART_RATE"
@@ -39,6 +40,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Required to check if Health Connect app is installed -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:name=".WalkRushApplication"
@@ -50,6 +56,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WalkRush">
 
+        <!-- Android 14+ permission rationale alias -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
@@ -61,6 +68,7 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Pre-Android 14 onboarding support -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -68,7 +76,6 @@
             android:theme="@style/Theme.WalkRush">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!-- Deep link for auth callback -->
@@ -80,8 +87,22 @@
                     android:scheme="walkrush"
                     android:host="callback" />
             </intent-filter>
+            <!-- Pre-Android 14 Health Connect onboarding intent -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_ONBOARDING" />
+            </intent-filter>
         </activity>
 
+        <!-- Android 14+ onboarding alias -->
+        <activity-alias
+            android:name="UAndAboveOnboardingActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.health.START_ONBOARDING">
+            <intent-filter>
+                <action android:name="android.health.connect.action.SHOW_ONBOARDING" />
+            </intent-filter>
+        </activity-alias>
 
     </application>
 

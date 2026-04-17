@@ -2,11 +2,11 @@ package dev.jefrien.walkrush.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.jefrien.walkrush.data.manager.HealthDataManager
 import dev.jefrien.walkrush.domain.model.auth.User
 import dev.jefrien.walkrush.domain.model.routine.Routine
 import dev.jefrien.walkrush.domain.model.userprofile.UserProfile
 import dev.jefrien.walkrush.domain.repository.AuthRepository
-import dev.jefrien.walkrush.domain.repository.HealthConnectRepository
 import dev.jefrien.walkrush.domain.repository.RoutineRepository
 import dev.jefrien.walkrush.domain.repository.UserProfileRepository
 import dev.jefrien.walkrush.presentation.common.DailyWorkoutItem
@@ -24,7 +24,7 @@ class HomeViewModel(
     private val authRepository: AuthRepository,
     private val userProfileRepository: UserProfileRepository,
     private val routineRepository: RoutineRepository,
-    private val healthConnectRepository: HealthConnectRepository
+    private val healthDataManager: HealthDataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -51,8 +51,8 @@ class HomeViewModel(
                 val user = authRepository.currentUser.first()
                 val profile = userProfileRepository.getUserProfile(userId)
                 val activeRoutine = routineRepository.getActiveRoutine(userId)
-                val hcAvailable = healthConnectRepository.isAvailable()
-                val hcConnected = hcAvailable && healthConnectRepository.hasPermissions()
+                val hcAvailable = healthDataManager.isAvailable()
+                val hcConnected = hcAvailable && healthDataManager.hasPermissions()
 
                 _uiState.value = HomeUiState(
                     isLoading = false,
@@ -60,7 +60,8 @@ class HomeViewModel(
                     profile = profile,
                     activeRoutine = activeRoutine,
                     dailyWorkouts = buildDailyWorkouts(activeRoutine, profile),
-                    healthConnectConnected = hcConnected
+                    healthConnectConnected = hcConnected,
+                    activeDataSource = healthDataManager.activeSourceType.displayName
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false)
@@ -120,7 +121,8 @@ class HomeViewModel(
         val dailyWorkouts: List<DailyWorkoutItem> = emptyList(),
         val isGeneratingRoutine: Boolean = false,
         val generationError: String? = null,
-        val healthConnectConnected: Boolean = false
+        val healthConnectConnected: Boolean = false,
+        val activeDataSource: String = ""
     )
 
     sealed class HomeEvent {

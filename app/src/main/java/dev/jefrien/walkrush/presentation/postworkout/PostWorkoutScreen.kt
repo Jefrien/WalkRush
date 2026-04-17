@@ -61,9 +61,9 @@ fun PostWorkoutScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val permissionsLauncher = rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
-    ) { result ->
-        val allGranted = HealthConnectRepositoryImpl.getRequiredPermissions().all { result[it] == true }
+        contract = HealthConnectRepositoryImpl.createPermissionContract()
+    ) { granted ->
+        val allGranted = HealthConnectRepositoryImpl.getAllPermissions().all { it in granted }
         if (allGranted) {
             viewModel.syncWithHealthConnectAfterPermissions()
         }
@@ -75,7 +75,7 @@ fun PostWorkoutScreen(
             when (event) {
                 is PostWorkoutViewModel.PostWorkoutEvent.NavigateHome -> onNavigateHome()
                 is PostWorkoutViewModel.PostWorkoutEvent.RequestHealthConnectPermissions -> {
-                    permissionsLauncher.launch(HealthConnectRepositoryImpl.getRequiredPermissions().toTypedArray())
+                    permissionsLauncher.launch(HealthConnectRepositoryImpl.getAllPermissions())
                 }
             }
         }

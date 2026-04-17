@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.jefrien.walkrush.data.healthconnect.HealthConnectStatus
 import dev.jefrien.walkrush.domain.model.routine.PhaseType
 import dev.jefrien.walkrush.presentation.common.TtsCoach
 import org.koin.androidx.compose.koinViewModel
@@ -532,7 +533,28 @@ private fun HealthConnectStats(
     data: dev.jefrien.walkrush.domain.repository.HealthSessionData?,
     modifier: Modifier = Modifier
 ) {
+    val status = data?.healthConnectStatus
     val hasAnyData = data?.heartRateBpm != null || data?.caloriesBurned != null || data?.steps != null
+
+    if (status == HealthConnectStatus.PERMISSIONS_MISSING) {
+        Text(
+            text = "Permisos de Health Connect requeridos",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error.copy(alpha = 0.9f),
+            modifier = modifier
+        )
+        return
+    }
+
+    if (status == HealthConnectStatus.NOT_AVAILABLE) {
+        Text(
+            text = "Health Connect no disponible",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = modifier
+        )
+        return
+    }
 
     if (!hasAnyData) {
         Text(
@@ -549,7 +571,7 @@ private fun HealthConnectStats(
         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        data?.heartRateBpm?.let { bpm ->
+        data.heartRateBpm?.let { bpm ->
             HealthStatPill(
                 icon = androidx.compose.material.icons.Icons.Default.Favorite,
                 value = "$bpm",
@@ -557,7 +579,7 @@ private fun HealthConnectStats(
                 tint = MaterialTheme.colorScheme.error
             )
         }
-        data?.caloriesBurned?.let { kcal ->
+        data.caloriesBurned?.let { kcal ->
             HealthStatPill(
                 icon = androidx.compose.material.icons.Icons.Default.LocalFireDepartment,
                 value = "%.0f".format(kcal),
@@ -565,7 +587,7 @@ private fun HealthConnectStats(
                 tint = MaterialTheme.colorScheme.tertiary
             )
         }
-        data?.steps?.let { steps ->
+        data.steps?.let { steps ->
             HealthStatPill(
                 icon = androidx.compose.material.icons.Icons.Default.DirectionsWalk,
                 value = if (steps >= 1000) "%.1fk".format(steps / 1000.0) else "$steps",
