@@ -48,6 +48,7 @@ class OnboardingViewModel(
 
     // Form data - Schedule
     var daysPerWeek by mutableIntStateOf(3)
+    var trainingDays by mutableStateOf<List<Int>>(listOf(1, 3, 5))
     var intensityLevel by mutableStateOf(IntensityLevel.BEGINNER)
 
     // Form data - Treadmill (NEW)
@@ -67,7 +68,7 @@ class OnboardingViewModel(
                 targetWeight != weight
 
     val isScheduleValid: Boolean
-        get() = daysPerWeek in 1..7
+        get() = trainingDays.size in 1..7 && trainingDays.all { it in 1..7 }
 
     val isTreadmillValid: Boolean
         get() = if (hasIncline) maxInclinePercent > 0 else true
@@ -116,7 +117,8 @@ class OnboardingViewModel(
                 fitnessGoal = FitnessGoal(goalType, ""),
                 targetWeightKg = targetWeight,
                 timelineMonths = timelineMonths,
-                daysPerWeek = daysPerWeek,
+                daysPerWeek = trainingDays.size,
+                trainingDays = trainingDays.sorted(),
                 intensityLevel = intensityLevel,
                 treadmillCapabilities = TreadmillCapabilities(
                     hasIncline = hasIncline,

@@ -15,6 +15,8 @@ import dev.jefrien.walkrush.presentation.auth.AuthScreen
 import dev.jefrien.walkrush.presentation.history.HistoryScreen
 import dev.jefrien.walkrush.presentation.home.HomeScreen
 import dev.jefrien.walkrush.presentation.onboarding.OnboardingScreen
+import dev.jefrien.walkrush.presentation.postworkout.PostWorkoutScreen
+import dev.jefrien.walkrush.presentation.profile.ProfileScreen
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
@@ -113,8 +115,7 @@ fun WalkRushNavHost(
 
         // Profile Screen
         composable(route = Route.Profile.path) {
-            // Placeholder - we'll create later
-            ProfilePlaceholder(
+            ProfileScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onSignOut = {
                     navController.navigate(Route.Auth.path) {
@@ -143,29 +144,35 @@ fun WalkRushNavHost(
             val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
             ActiveWorkoutScreen(
                 sessionId = sessionId,
-                onWorkoutComplete = { navController.popBackStack() },
+                onWorkoutComplete = {
+                    navController.navigate(Route.PostWorkout.createRoute(sessionId)) {
+                        popUpTo(Route.Home.path) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onCancel = { navController.popBackStack() }
+            )
+        }
+
+        // Post Workout Screen
+        composable(
+            route = Route.PostWorkout.path,
+            arguments = listOf(
+                navArgument("sessionId") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
+            PostWorkoutScreen(
+                sessionId = sessionId,
+                onNavigateHome = {
+                    navController.navigate(Route.Home.path) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }
 }
 
-// Placeholder composables until we create the real ones
-@Composable
-private fun ProfilePlaceholder(onNavigateBack: () -> Unit, onSignOut: () -> Unit) {
-    // Empty for now
-}
-
-@Composable
-private fun HistoryPlaceholder(onNavigateBack: () -> Unit) {
-    // Empty for now
-}
-
-@Composable
-private fun ActiveWorkoutPlaceholder(
-    sessionId: String,
-    onWorkoutComplete: () -> Unit,
-    onCancel: () -> Unit
-) {
-    // Empty for now
-}

@@ -20,6 +20,9 @@ sealed class Route(val path: String) {
     object ActiveWorkout : Route("active_workout/{sessionId}") {
         fun createRoute(sessionId: String) = "active_workout/$sessionId"
     }
+    object PostWorkout : Route("post_workout/{sessionId}") {
+        fun createRoute(sessionId: String) = "post_workout/$sessionId"
+    }
 
     // Deep links
     object AuthCallback : Route("callback")

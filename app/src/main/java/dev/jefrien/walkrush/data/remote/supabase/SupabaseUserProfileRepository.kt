@@ -86,6 +86,7 @@ class SupabaseUserProfileRepository(
         @SerialName("target_weight_kg") val targetWeightKg: Float,
         @SerialName("timeline_months") val timelineMonths: Int,
         @SerialName("days_per_week") val daysPerWeek: Int,
+        @SerialName("training_days") val trainingDays: List<Int> = emptyList(),
         @SerialName("intensity_level") val intensityLevel: String,
         @SerialName("has_incline") val hasIncline: Boolean,
         @SerialName("max_incline_percent") val maxInclinePercent: Float,
@@ -103,6 +104,7 @@ class SupabaseUserProfileRepository(
         targetWeightKg = targetWeightKg,
         timelineMonths = timelineMonths,
         daysPerWeek = daysPerWeek,
+        trainingDays = trainingDays,
         intensityLevel = intensityLevel.name,
         hasIncline = treadmillCapabilities.hasIncline,
         maxInclinePercent = treadmillCapabilities.maxInclinePercent,
@@ -123,6 +125,7 @@ class SupabaseUserProfileRepository(
         targetWeightKg = targetWeightKg,
         timelineMonths = timelineMonths,
         daysPerWeek = daysPerWeek,
+        trainingDays = trainingDays,
         intensityLevel = IntensityLevel.valueOf(intensityLevel),
         treadmillCapabilities = TreadmillCapabilities(
             hasIncline = hasIncline,

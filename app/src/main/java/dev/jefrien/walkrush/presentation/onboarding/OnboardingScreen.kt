@@ -127,9 +127,16 @@ fun OnboardingScreen(
                     )
 
                     3 -> ScheduleStep(
-                        daysPerWeek = viewModel.daysPerWeek,
+                        trainingDays = viewModel.trainingDays,
                         intensityLevel = viewModel.intensityLevel,
-                        onDaysChange = viewModel::daysPerWeek::set,
+                        onTrainingDayToggle = { day ->
+                            val current = viewModel.trainingDays
+                            viewModel.trainingDays = if (day in current) {
+                                current - day
+                            } else {
+                                current + day
+                            }
+                        },
                         onIntensityChange = viewModel::intensityLevel::set
                     )
 

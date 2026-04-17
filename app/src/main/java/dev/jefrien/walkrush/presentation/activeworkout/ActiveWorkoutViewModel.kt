@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.jefrien.walkrush.domain.model.routine.WorkoutPhase
 import dev.jefrien.walkrush.domain.model.routine.WorkoutSession
+import dev.jefrien.walkrush.domain.repository.HealthConnectRepository
+import dev.jefrien.walkrush.domain.repository.HealthSessionData
 import dev.jefrien.walkrush.domain.repository.RoutineRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -14,9 +16,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 class ActiveWorkoutViewModel(
-    private val routineRepository: RoutineRepository
+    private val routineRepository: RoutineRepository,
+    private val healthConnectRepository: HealthConnectRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
@@ -26,6 +30,8 @@ class ActiveWorkoutViewModel(
     val events: SharedFlow<Event> = _events.asSharedFlow()
 
     private var timerJob: Job? = null
+    private var healthConnectJob: Job? = null
+    private var sessionStartTime: Instant? = null
 
     fun loadSession(sessionId: String) {
         viewModelScope.launch {
@@ -36,13 +42,23 @@ class ActiveWorkoutViewModel(
                 _events.emit(Event.NavigateBack)
                 return@launch
             }
+
+            val hcAvailable = healthConnectRepository.isAvailable()
+            val hcPermissions = if (hcAvailable) healthConnectRepository.hasPermissions() else false
+            sessionStartTime = Instant.ofEpochMilli(session.createdAt)
+
             _uiState.value = UiState(
                 isLoading = false,
                 session = session,
                 totalDurationSeconds = session.totalDurationSeconds,
-                remainingTotalSeconds = session.totalDurationSeconds
+                remainingTotalSeconds = session.totalDurationSeconds,
+                healthConnectAvailable = hcAvailable,
+                healthConnectPermissionsGranted = hcPermissions
             )
             startTimer()
+            if (hcAvailable && hcPermissions) {
+                startHealthConnectPolling()
+            }
         }
     }
 
@@ -52,13 +68,18 @@ class ActiveWorkoutViewModel(
 
         if (state.isRunning) {
             pauseTimer()
+            stopHealthConnectPolling()
         } else {
             startTimer()
+            if (state.healthConnectAvailable && state.healthConnectPermissionsGranted) {
+                startHealthConnectPolling()
+            }
         }
     }
 
     fun finishWorkout(rating: Int? = null) {
         pauseTimer()
+        stopHealthConnectPolling()
         val state = _uiState.value
         val session = state.session ?: return
 
@@ -86,6 +107,7 @@ class ActiveWorkoutViewModel(
 
     fun confirmCancel() {
         pauseTimer()
+        stopHealthConnectPolling()
         viewModelScope.launch {
             _events.emit(Event.NavigateBack)
         }
@@ -98,7 +120,6 @@ class ActiveWorkoutViewModel(
             finishWorkout()
             return
         }
-        // Sumar el tiempo restante de la fase actual al elapsed time para saltarla
         val remainingInCurrentPhase = state.remainingPhaseSeconds
         val newElapsed = state.elapsedSeconds + remainingInCurrentPhase
         val newPhaseIndex = state.currentPhaseIndex + 1
@@ -134,7 +155,6 @@ class ActiveWorkoutViewModel(
         val newElapsed = state.elapsedSeconds + 1
         val newRemainingTotal = (state.totalDurationSeconds - newElapsed).coerceAtLeast(0)
 
-        // Calculate current phase
         var accumulated = 0
         var newPhaseIndex = 0
         for ((index, phase) in phases.withIndex()) {
@@ -151,14 +171,13 @@ class ActiveWorkoutViewModel(
             (accumulated - newElapsed).coerceAtLeast(0)
         } else 0
 
-        // Phase changed?
         if (newPhaseIndex != state.currentPhaseIndex && currentPhase != null) {
             viewModelScope.launch { _events.emit(Event.PhaseChanged(currentPhase)) }
         }
 
-        // Workout complete?
         if (newElapsed >= state.totalDurationSeconds) {
             pauseTimer()
+            stopHealthConnectPolling()
             _uiState.value = state.copy(
                 elapsedSeconds = newElapsed,
                 remainingTotalSeconds = 0,
@@ -184,9 +203,32 @@ class ActiveWorkoutViewModel(
         _uiState.value = _uiState.value.copy(isRunning = false)
     }
 
+    private fun startHealthConnectPolling() {
+        if (healthConnectJob?.isActive == true) return
+        healthConnectJob = viewModelScope.launch {
+            while (_uiState.value.isRunning && !_uiState.value.isCompleted) {
+                readHealthConnectData()
+                delay(5000)
+            }
+        }
+    }
+
+    private fun stopHealthConnectPolling() {
+        healthConnectJob?.cancel()
+        healthConnectJob = null
+    }
+
+    private suspend fun readHealthConnectData() {
+        val start = sessionStartTime ?: return
+        val end = Instant.now()
+        val data = healthConnectRepository.readSessionHealthData(start, end)
+        _uiState.value = _uiState.value.copy(healthConnectData = data)
+    }
+
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        healthConnectJob?.cancel()
     }
 
     data class UiState(
@@ -199,7 +241,10 @@ class ActiveWorkoutViewModel(
         val totalDurationSeconds: Int = 0,
         val remainingTotalSeconds: Int = 0,
         val remainingPhaseSeconds: Int = 0,
-        val currentPhaseIndex: Int = 0
+        val currentPhaseIndex: Int = 0,
+        val healthConnectAvailable: Boolean = false,
+        val healthConnectPermissionsGranted: Boolean = false,
+        val healthConnectData: HealthSessionData? = null
     ) {
         val currentPhase: WorkoutPhase?
             get() = session?.phases?.getOrNull(currentPhaseIndex)

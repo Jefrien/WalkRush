@@ -22,12 +22,14 @@ import dev.jefrien.walkrush.domain.model.userprofile.IntensityLevel
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ScheduleStep(
-    daysPerWeek: Int,
+    trainingDays: List<Int>,
     intensityLevel: IntensityLevel,
-    onDaysChange: (Int) -> Unit,
+    onTrainingDayToggle: (Int) -> Unit,
     onIntensityChange: (IntensityLevel) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dayNames = listOf("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -42,9 +44,9 @@ fun ScheduleStep(
             style = MaterialTheme.typography.headlineSmall
         )
 
-        // Days per week
+        // Training days selection
         Text(
-            text = "¿Cuántos días a la semana?",
+            text = "¿Qué días entrenarás?",
             style = MaterialTheme.typography.titleMedium
         )
 
@@ -53,14 +55,22 @@ fun ScheduleStep(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            (1..7).forEach { day ->
+            dayNames.forEachIndexed { index, name ->
+                val dayNumber = index + 1
+                val isSelected = dayNumber in trainingDays
                 DayChip(
-                    day = day,
-                    isSelected = day == daysPerWeek,
-                    onClick = { onDaysChange(day) }
+                    label = name,
+                    isSelected = isSelected,
+                    onClick = { onTrainingDayToggle(dayNumber) }
                 )
             }
         }
+
+        Text(
+            text = "${trainingDays.size} días seleccionados",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         // Intensity level
         Text(
@@ -90,14 +100,14 @@ fun ScheduleStep(
 
 @Composable
 private fun DayChip(
-    day: Int,
+    label: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     FilterChip(
         selected = isSelected,
         onClick = onClick,
-        label = { Text(day.toString()) }
+        label = { Text(label) }
     )
 }
 

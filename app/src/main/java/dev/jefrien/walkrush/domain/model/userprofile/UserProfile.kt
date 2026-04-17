@@ -16,6 +16,7 @@ data class UserProfile(
     val targetWeightKg: Float,
     val timelineMonths: Int,
     val daysPerWeek: Int,
+    val trainingDays: List<Int> = emptyList(), // 1=Monday, 7=Sunday
     val intensityLevel: IntensityLevel,
     val treadmillCapabilities: TreadmillCapabilities,
     val createdAt: Long = System.currentTimeMillis()

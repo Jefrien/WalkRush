@@ -26,8 +26,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -83,7 +87,7 @@ fun ActiveWorkoutScreen(
     var showCancelDialog by remember { mutableStateOf(false) }
     var showFinishDialog by remember { mutableStateOf(false) }
 
-    val toneGenerator = remember { ToneGenerator(0, 85) }
+    val toneGenerator = remember { ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100) }
 
     SideEffect {
         activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -105,13 +109,15 @@ fun ActiveWorkoutScreen(
                 is ActiveWorkoutViewModel.Event.NavigateBack -> onCancel()
                 is ActiveWorkoutViewModel.Event.WorkoutComplete,
                 is ActiveWorkoutViewModel.Event.WorkoutAutoComplete -> {
-                    toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 500)
-                    vibrate(context, 400)
+                    // Strong ringtone-like sound + longer duration
+                    toneGenerator.startTone(ToneGenerator.TONE_SUP_RINGTONE, 900)
+                    vibrate(context, 500)
                     onWorkoutComplete()
                 }
                 is ActiveWorkoutViewModel.Event.PhaseChanged -> {
-                    toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP2, 250)
-                    vibrate(context, 150)
+                    // Louder alert + double beep effect
+                    toneGenerator.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 350)
+                    vibrate(context, 200)
                 }
                 is ActiveWorkoutViewModel.Event.ShowError -> {
                     snackbarHostState.showSnackbar(event.message)
@@ -122,7 +128,7 @@ fun ActiveWorkoutScreen(
 
     LaunchedEffect(uiState.value.isRunning) {
         if (uiState.value.isRunning) {
-            toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+            toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP2, 220)
         }
     }
 
@@ -158,13 +164,25 @@ fun ActiveWorkoutScreen(
                     horizontalArrangement = Arrangement.spacedBy(20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // LEFT: Phase timer big
-                    PhaseTimerPanel(
-                        phaseTime = uiState.value.formattedPhaseTime,
-                        phaseProgress = uiState.value.phaseProgress,
-                        isRunning = uiState.value.isRunning,
-                        modifier = Modifier.weight(1f)
-                    )
+                    // LEFT: Phase timer big + Health Connect data
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        PhaseTimerPanel(
+                            phaseTime = uiState.value.formattedPhaseTime,
+                            phaseProgress = uiState.value.phaseProgress,
+                            isRunning = uiState.value.isRunning,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (uiState.value.healthConnectAvailable) {
+                            HealthConnectStats(
+                                data = uiState.value.healthConnectData,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                    }
 
                     // CENTER: Phase info
                     PhaseInfoPanel(
@@ -491,6 +509,91 @@ private fun ControlsPanel(
             Spacer(Modifier.width(6.dp))
             Text("Cancelar")
         }
+    }
+}
+
+@Composable
+private fun HealthConnectStats(
+    data: dev.jefrien.walkrush.domain.repository.HealthSessionData?,
+    modifier: Modifier = Modifier
+) {
+    val hasAnyData = data?.heartRateBpm != null || data?.caloriesBurned != null || data?.steps != null
+
+    if (!hasAnyData) {
+        Text(
+            text = "Sincronizando con reloj...",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = modifier
+        )
+        return
+    }
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        data?.heartRateBpm?.let { bpm ->
+            HealthStatPill(
+                icon = androidx.compose.material.icons.Icons.Default.Favorite,
+                value = "$bpm",
+                unit = "bpm",
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+        data?.caloriesBurned?.let { kcal ->
+            HealthStatPill(
+                icon = androidx.compose.material.icons.Icons.Default.LocalFireDepartment,
+                value = "%.0f".format(kcal),
+                unit = "kcal",
+                tint = MaterialTheme.colorScheme.tertiary
+            )
+        }
+        data?.steps?.let { steps ->
+            HealthStatPill(
+                icon = androidx.compose.material.icons.Icons.Default.DirectionsWalk,
+                value = if (steps >= 1000) "%.1fk".format(steps / 1000.0) else "$steps",
+                unit = "pasos",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun HealthStatPill(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    unit: String,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(tint.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = tint
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = tint
+        )
+        Text(
+            text = unit,
+            style = MaterialTheme.typography.labelSmall,
+            color = tint.copy(alpha = 0.9f)
+        )
     }
 }
 

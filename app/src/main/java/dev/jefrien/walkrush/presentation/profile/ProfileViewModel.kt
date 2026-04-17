@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
@@ -33,26 +34,24 @@ class ProfileViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
-            val userId = authRepository.currentUserId()
-            if (userId == null) {
-                _events.emit(ProfileEvent.NavigateToAuth)
-                return@launch
-            }
-
-            val user = authRepository.currentUser
-                .let { flow ->
-                    var value: User? = null
-                    flow.collect { value = it }
-                    value
+            try {
+                val userId = authRepository.currentUserId()
+                if (userId == null) {
+                    _events.emit(ProfileEvent.NavigateToAuth)
+                    return@launch
                 }
 
-            val profile = userProfileRepository.getUserProfile(userId)
+                val user = authRepository.currentUser.first()
+                val profile = userProfileRepository.getUserProfile(userId)
 
-            _uiState.value = ProfileUiState(
-                isLoading = false,
-                user = user,
-                profile = profile
-            )
+                _uiState.value = ProfileUiState(
+                    isLoading = false,
+                    user = user,
+                    profile = profile
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false)
+            }
         }
     }
 

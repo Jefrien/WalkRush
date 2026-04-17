@@ -9,10 +9,10 @@ import dev.jefrien.walkrush.domain.model.routine.WorkoutPhase
 import dev.jefrien.walkrush.domain.model.routine.WorkoutSession
 import dev.jefrien.walkrush.domain.model.userprofile.UserProfile
 import io.ktor.client.HttpClient
-import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.SerialName
@@ -88,6 +88,10 @@ class OpenAIRoutineGenerator(
             "NO inclinacion. targetInclinePercent siempre = 0."
         }
 
+        val trainingDays = profile.trainingDays.takeIf { it.isNotEmpty() } ?: listOf(1, 3, 5)
+        val dayNames = mapOf(1 to "Lunes", 2 to "Martes", 3 to "Miercoles", 4 to "Jueves", 5 to "Viernes", 6 to "Sabado", 7 to "Domingo")
+        val trainingDaysText = trainingDays.map { dayNames[it] }.joinToString(", ")
+
         val (minMinutes, maxMinutes, warmUpMin, coolDownMin) = when (profile.intensityLevel.name) {
             "BEGINNER" -> listOf(25, 40, 5, 5)
             "INTERMEDIATE" -> listOf(35, 50, 5, 5)
@@ -102,12 +106,20 @@ class OpenAIRoutineGenerator(
             else -> "30% en RUN"
         }
 
+        val firstDay = trainingDays.first()
+
         return """Crea un plan de caminadora/cinta INTENSO y DETALLADO. 4 semanas. JSON valido.
 
 Usuario: ${profile.weightKg}kg, ${profile.heightCm}cm, ${profile.age}años, IMC ${String.format("%.1f", bmi)}
 Meta: ${profile.fitnessGoal.type.name}, ${profile.targetWeightKg}kg en ${profile.timelineMonths}meses
-Dias: ${profile.daysPerWeek}/semana | Nivel: ${profile.intensityLevel.name}
+Nivel: ${profile.intensityLevel.name}
 Max speed: ${profile.treadmillCapabilities.maxSpeedKmh}km/h | $inclineConstraint
+
+DIAS DE ENTRENAMIENTO OBLIGATORIOS:
+El usuario ENTRENA EXACTAMENTE estos dias: $trainingDaysText.
+Cada semana debe tener EXACTAMENTE ${trainingDays.size} sesiones, una para cada uno de esos dias.
+El dayOfWeek de cada sesion debe ser EXACTAMENTE uno de estos valores: ${trainingDays.joinToString(", ")}.
+Ordena las sesiones de la semana segun el orden de los dias: ${trainingDays.sorted().joinToString(", ")}.
 
 REGLAS OBLIGATORIAS DE DURACION:
 - Nivel ${profile.intensityLevel.name}: CADA sesion debe durar entre $minMinutes y $maxMinutes minutos en TOTAL (incluyendo calentamiento y enfriamiento).
@@ -141,11 +153,11 @@ EJEMPLO INTENSO (50 min total):
 11. RUN: 3min a 9km/h
 12. COOL_DOWN: 5min a 3.5km/h
 
-Cada semana: ${profile.daysPerWeek} sesiones. Distribuye dayOfWeek 1-7. Varia sessionType.
+Cada semana: EXACTAMENTE ${trainingDays.size} sesiones con dayOfWeek en [${trainingDays.joinToString(", ")}].
 Progresion: semana 4 mas dificil que semana 1 (aumenta velocidades o inclinacion levemente).
 
 JSON exacto:
-{"totalWeeks":4,"projectedWeightLossKg":5.0,"recommendations":["Consejo personalizado 1","Consejo 2","Consejo 3"],"weeklyPlans":[{"weekNumber":1,"focus":"Adaptacion","sessions":[{"dayOfWeek":1,"type":"INTERVALS","estimatedCalories":450,"notes":"Mantén postura erguida","phases":[{"type":"WARM_UP","title":"Calentamiento","targetSpeedKmh":4.0,"targetInclinePercent":0,"durationSeconds":300,"notes":"Paso ligero"},{"type":"WALK","title":"Caminata activa","targetSpeedKmh":6.0,"targetInclinePercent":2,"durationSeconds":180,"notes":"Ritmo constante"},{"type":"RUN","title":"Trote intenso","targetSpeedKmh":9.0,"targetInclinePercent":0,"durationSeconds":180,"notes":"Respira profundo"},{"type":"COOL_DOWN","title":"Enfriamiento","targetSpeedKmh":3.5,"targetInclinePercent":0,"durationSeconds":300,"notes":"Relaja el cuerpo"}]}]}]}""".trimIndent()
+{"totalWeeks":4,"projectedWeightLossKg":5.0,"recommendations":["Consejo personalizado 1","Consejo 2","Consejo 3"],"weeklyPlans":[{"weekNumber":1,"focus":"Adaptacion","sessions":[{"dayOfWeek":$firstDay,"type":"INTERVALS","estimatedCalories":450,"notes":"Mantén postura erguida","phases":[{"type":"WARM_UP","title":"Calentamiento","targetSpeedKmh":4.0,"targetInclinePercent":0,"durationSeconds":300,"notes":"Paso ligero"},{"type":"WALK","title":"Caminata activa","targetSpeedKmh":6.0,"targetInclinePercent":2,"durationSeconds":180,"notes":"Ritmo constante"},{"type":"RUN","title":"Trote intenso","targetSpeedKmh":9.0,"targetInclinePercent":0,"durationSeconds":180,"notes":"Respira profundo"},{"type":"COOL_DOWN","title":"Enfriamiento","targetSpeedKmh":3.5,"targetInclinePercent":0,"durationSeconds":300,"notes":"Relaja el cuerpo"}]}]}]}""".trimIndent()
     }
 
     companion object {
@@ -164,7 +176,7 @@ private data class OpenAIRequest(
     val model: String,
     val messages: List<OpenAIMessage>,
     @SerialName("response_format") val responseFormat: ResponseFormat,
-    @SerialName("max_tokens") val maxTokens: Int = 3500,
+    @SerialName("max_tokens") val maxTokens: Int = 8000,
     val temperature: Float = 0.5f
 )
 
@@ -252,7 +264,7 @@ private data class OpenAISessionJson(
             dayOfWeek = dayOfWeek,
             type = SessionType.valueOf(type.uppercase()),
             estimatedCalories = estimatedCalories,
-            notes = notes ?: "" ?: "",
+            notes = notes ?: "",
             phases = phases.mapIndexed { index, phase ->
                 phase.toDomain(sessionId, index)
             }

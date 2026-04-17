@@ -203,6 +203,14 @@ class SupabaseRoutineRepository(
                 )
             }
 
+        val generatedAtMillis = dto.generatedAt?.let {
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+        } ?: System.currentTimeMillis()
+
         return Routine(
             id = dto.id,
             userId = dto.userId,
@@ -210,7 +218,7 @@ class SupabaseRoutineRepository(
             projectedWeightLossKg = dto.projectedWeightLossKg,
             recommendations = dto.recommendations,
             isActive = dto.isActive,
-            generatedAt = 0L,
+            generatedAt = generatedAtMillis,
             weeklyPlans = weeks
         )
     }
@@ -251,7 +259,11 @@ class SupabaseRoutineRepository(
             estimatedCalories = dto.estimatedCalories,
             notes = dto.notes,
             isCompleted = dto.isCompleted,
-            completedAt = dto.completedAt?.let { 0L },
+            completedAt = dto.completedAt?.let {
+                try {
+                    java.time.Instant.parse(it).toEpochMilli()
+                } catch (e: Exception) { null }
+            },
             actualCalories = dto.actualCalories,
             userRating = dto.userRating,
             phases = phases
